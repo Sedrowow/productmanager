@@ -22,10 +22,10 @@ class DatabaseManager {
   Future<Database> _initDatabase() async {
     // Get database path
     String path = join(await getDatabasesPath(), 'management.db');
-    
+
     // Check if database exists
     bool exists = await databaseExists(path);
-    
+
     if (!exists) {
       // create the database
       try {
@@ -77,6 +77,16 @@ class DatabaseManager {
       final db = await database;
       await db.query('sqlite_master');
       return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Add this method at the end of DatabaseManager class
+  Future<bool> forceCreateDatabase() async {
+    try {
+      await _initDatabase();
+      return await checkDatabaseConnection();
     } catch (e) {
       return false;
     }

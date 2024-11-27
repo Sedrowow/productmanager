@@ -11,6 +11,7 @@ class MainApp extends StatefulWidget {
   @override
   State<MainApp> createState() => _MainAppState();
 }
+
 class _MainAppState extends State<MainApp> {
   @override
   Widget build(BuildContext context) {
@@ -19,6 +20,7 @@ class _MainAppState extends State<MainApp> {
     );
   }
 }
+
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
@@ -29,18 +31,56 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   final DatabaseManager _dbManager = DatabaseManager();
   bool _isConnected = false;
-
+  bool _isChecking = false;
+  int _retryCount = 0;
+  bool _showCreateOption = false;
 
   @override
   void initState() {
     super.initState();
-    super.initState();
-    _checkConnection();
   }
-  Future<void> _checkConnection() async {
-    final bool result = await _dbManager.checkDatabaseConnection();
+
+  Future<void> _checkConnectionWithRetry() async {
+    if (_isChecking) return;
+
+    setState(() {
+      _isChecking = true;
+      _showCreateOption = false;
+    });
+
+    for (int i = 0; i < 3; i++) {
+      _retryCount = i + 1;
+      final bool result = await _dbManager.checkDatabaseConnection();
+      if (result) {
+        setState(() {
+          _isConnected = true;
+          _isChecking = false;
+          _showCreateOption = false;
+        });
+        return;
+      }
+      await Future.delayed(const Duration(seconds: 1));
+    }
+
+    setState(() {
+      _isConnected = false;
+      _isChecking = false;
+      _showCreateOption = true;
+    });
+  }
+
+  Future<void> _createDatabase() async {
+    setState(() {
+      _isChecking = true;
+      _showCreateOption = false;
+    });
+
+    final bool result = await _dbManager.forceCreateDatabase();
+
     setState(() {
       _isConnected = result;
+      _isChecking = false;
+      _showCreateOption = !result;
     });
   }
 
@@ -60,10 +100,19 @@ class _MainScreenState extends State<MainScreen> {
                 color: _isConnected ? Colors.green : Colors.red,
               ),
             ),
+            if (_isChecking) Text('Retrying... Attempt $_retryCount of 3'),
+            const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _checkConnection,
+              onPressed: _isChecking ? null : _checkConnectionWithRetry,
               child: const Text('Check Connection'),
             ),
+            if (_showCreateOption) ...[
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _createDatabase,
+                child: const Text('Create Database'),
+              ),
+            ],
           ],
         ),
       ),
