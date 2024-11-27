@@ -85,9 +85,21 @@ class DatabaseManager {
   // Add this method at the end of DatabaseManager class
   Future<bool> forceCreateDatabase() async {
     try {
-      await _initDatabase();
+      String path = join(await getDatabasesPath(), 'management.db');
+
+      // Ensure directory exists
+      await Directory(dirname(path)).create(recursive: true);
+
+      // Force create database and tables
+      _database = await openDatabase(
+        path,
+        version: 1,
+        onCreate: _createTables,
+      );
+
       return await checkDatabaseConnection();
     } catch (e) {
+      print('Database creation error: $e'); // For debugging
       return false;
     }
   }

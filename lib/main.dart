@@ -46,10 +46,14 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _isChecking = true;
       _showCreateOption = false;
+      _retryCount = 0; // Reset counter at start
     });
 
     for (int i = 0; i < 3; i++) {
-      _retryCount = i + 1;
+      setState(() {
+        _retryCount = i + 1; // Update counter in setState
+      });
+
       final bool result = await _dbManager.checkDatabaseConnection();
       if (result) {
         setState(() {
