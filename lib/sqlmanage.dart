@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:logger/logger.dart';
 
 class DatabaseManager {
   static final DatabaseManager _instance = DatabaseManager._internal();
@@ -99,8 +100,32 @@ class DatabaseManager {
 
       return await checkDatabaseConnection();
     } catch (e) {
-      print('Database creation error: $e'); // For debugging
+      final logger = Logger();
+      logger.e('Database creation error',
+          error: e, stackTrace: StackTrace.current);
       return false;
+    }
+  }
+
+  Future<List<String>> getTables() async {
+    try {
+      final db = await database;
+      final tables = await db
+          .query('sqlite_master', where: 'type = ?', whereArgs: ['table']);
+      return tables.map((t) => t['name'] as String).toList()
+        ..removeWhere((table) =>
+            table == 'android_metadata' || table == 'sqlite_sequence');
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getTableContent(String tableName) async {
+    try {
+      final db = await database;
+      return await db.query(tableName);
+    } catch (e) {
+      return [];
     }
   }
 }

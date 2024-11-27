@@ -35,7 +35,7 @@ if it does not exist, we need to create the sqlite file, else we continue to che
 
 * * *
 
-now we need
+now we need to display the existing tables. if a connection is existing, there will be a button saying: "view database", which is going to another screen with a statless widget showing the database tables with their content. (each view for a table is selectable inside a sidebar. and you can go back the the main screen with the bakc button on the top left)
 
 ## Part 2
 

@@ -1,7 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'sqlmanage.dart';
+import 'database_viewer.dart';
 
-void main() {
+void main() async {
+  // Make main async
+  // Ensure Flutter is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize database factory based on platform
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWeb;
+  } else {
+    // Initialize FFI for other platforms
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
+
   runApp(const MainApp());
 }
 
@@ -115,6 +132,20 @@ class _MainScreenState extends State<MainScreen> {
               ElevatedButton(
                 onPressed: _createDatabase,
                 child: const Text('Create Database'),
+              ),
+            ],
+            if (_isConnected) ...[
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const DatabaseViewerScreen(),
+                    ),
+                  );
+                },
+                child: const Text('View Database'),
               ),
             ],
           ],
