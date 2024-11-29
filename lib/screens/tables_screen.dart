@@ -10,9 +10,6 @@ class TablesScreen extends StatefulWidget {
 
 class _TablesScreenState extends State<TablesScreen> {
   final TablesController _controller = TablesController();
-  String? _selectedTable;
-  List<Map<String, dynamic>>? _tableData;
-  List<Map<String, dynamic>>? _columnInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +27,7 @@ class _TablesScreenState extends State<TablesScreen> {
               }
 
               return DropdownButton<String>(
-                value: _selectedTable,
+                value: _controller.selectedTable,
                 hint: const Text('Select a table'),
                 items: snapshot.data!.map((String table) {
                   return DropdownMenuItem<String>(
@@ -39,28 +36,27 @@ class _TablesScreenState extends State<TablesScreen> {
                   );
                 }).toList(),
                 onChanged: (String? newValue) async {
-                  setState(() => _selectedTable = newValue);
                   if (newValue != null) {
-                    _tableData = await _controller.getTableData(newValue);
-                    _columnInfo = await _controller.getTableColumns(newValue);
+                    await _controller.selectTable(newValue);
                     setState(() {});
                   }
                 },
               );
             },
           ),
-          if (_tableData != null && _columnInfo != null)
+          if (_controller.currentTableData != null &&
+              _controller.currentColumnInfo != null)
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: SingleChildScrollView(
                   child: DataTable(
-                    columns: _columnInfo!
+                    columns: _controller.currentColumnInfo!
                         .map((col) => DataColumn(label: Text(col['name'])))
                         .toList(),
-                    rows: _tableData!.map((row) {
+                    rows: _controller.currentTableData!.map((row) {
                       return DataRow(
-                        cells: _columnInfo!.map((col) {
+                        cells: _controller.currentColumnInfo!.map((col) {
                           return DataCell(
                             Text(row[col['name']]?.toString() ?? 'null'),
                           );
