@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class DatabaseManager {
   static final DatabaseManager _instance = DatabaseManager._internal();
@@ -20,17 +21,19 @@ class DatabaseManager {
   }
 
   Future<Database> _initDatabase() async {
-    // Get database path
-    String path = join(await getDatabasesPath(), 'management.db');
+    String path;
 
-    // Check if database exists
-    bool exists = await databaseExists(path);
-
-    if (!exists) {
-      // create the database
-      try {
-        await Directory(dirname(path)).create(recursive: true);
-      } catch (_) {}
+    if (kIsWeb) {
+      path = 'management.db';
+    } else {
+      path = join(await getDatabasesPath(), 'management.db');
+      // Check if database exists
+      bool exists = await databaseExists(path);
+      if (!exists) {
+        try {
+          await Directory(dirname(path)).create(recursive: true);
+        } catch (_) {}
+      }
     }
 
     // Open/create database
