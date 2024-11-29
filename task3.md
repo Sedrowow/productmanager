@@ -38,3 +38,7 @@ a litttle overview what each folder does:
 - **services:** these are for external accesses, handling files, and/or anything that serves a purpose that helps logic and such to execute
 
 the reason why to split up main.dart into the visual (screen) part and the logic (controller) part: it enables the dev to adapt the code better than having all the code of different topics/tasks in one file.
+
+## Task State
+
+DONE
