@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../controllers/main_controller.dart';
-import 'tables_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -11,19 +10,16 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final MainController _controller = MainController();
-  bool _isConnected = false;
 
   @override
   void initState() {
     super.initState();
-    _checkConnection();
+    _updateConnectionStatus();
   }
 
-  Future<void> _checkConnection() async {
-    final bool result = await _controller.checkDatabaseConnection();
-    setState(() {
-      _isConnected = result;
-    });
+  Future<void> _updateConnectionStatus() async {
+    await _controller.checkConnection();
+    setState(() {});
   }
 
   @override
@@ -37,25 +33,18 @@ class _MainScreenState extends State<MainScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Database connection Status: ${_isConnected ? 'Connected' : 'Not Connected'}',
+              'Database connection Status: ${_controller.isConnected ? 'Connected' : 'Not Connected'}',
               style: TextStyle(
-                color: _isConnected ? Colors.green : Colors.red,
+                color: _controller.isConnected ? Colors.green : Colors.red,
               ),
             ),
             ElevatedButton(
-              onPressed: _checkConnection,
+              onPressed: _updateConnectionStatus,
               child: const Text('Check Connection'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const TablesScreen(),
-                  ),
-                );
-              },
+              onPressed: () => _controller.navigateToTables(context),
               child: const Text('View Tables'),
             ),
           ],

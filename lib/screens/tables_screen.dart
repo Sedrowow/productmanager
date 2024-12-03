@@ -37,7 +37,7 @@ class _TablesScreenState extends State<TablesScreen> {
                 }).toList(),
                 onChanged: (String? newValue) async {
                   if (newValue != null) {
-                    await _controller.selectTable(newValue);
+                    await _controller.onTableSelected(newValue);
                     setState(() {});
                   }
                 },
@@ -51,18 +51,8 @@ class _TablesScreenState extends State<TablesScreen> {
                 scrollDirection: Axis.horizontal,
                 child: SingleChildScrollView(
                   child: DataTable(
-                    columns: _controller.currentColumnInfo!
-                        .map((col) => DataColumn(label: Text(col['name'])))
-                        .toList(),
-                    rows: _controller.currentTableData!.map((row) {
-                      return DataRow(
-                        cells: _controller.currentColumnInfo!.map((col) {
-                          return DataCell(
-                            Text(row[col['name']]?.toString() ?? 'null'),
-                          );
-                        }).toList(),
-                      );
-                    }).toList(),
+                    columns: _controller.getColumns(),
+                    rows: _controller.getRows(),
                   ),
                 ),
               ),
