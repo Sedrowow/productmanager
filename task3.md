@@ -49,6 +49,17 @@ a litttle overview what each folder does:
 
 the reason why to split up main.dart into the visual (screen) part and the logic (controller) part: it enables the dev to adapt the code better than having all the code of different topics/tasks in one file.
 
+## each part telling their prupose
+
+Screen:
+"I show you what I see. If I see a state, I display it as well, but I have no idea how it is executed."
+
+Controller:
+"I know how it is executed, but I can't see it. I know where to get the information, but I don’t care how, as long as I can read it."
+
+Service:
+"I have no idea how it is executed. I can only talk to a third party, and provide the Controller with information in a readable form, but I have no interest in or understanding of what this information is used for."
+
 ## Task State
 
 DONE
