@@ -3,6 +3,10 @@ import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../models/base_table.dart';
+import '../models/users_table.dart';
+import '../models/products_table.dart';
+import '../models/orders_table.dart';
 
 class DatabaseManager {
   static final DatabaseManager _instance = DatabaseManager._internal();
@@ -44,35 +48,28 @@ class DatabaseManager {
     );
   }
 
+  final List<BaseTable> _tables = [
+    User(name: '', email: ''),
+    Product(name: '', price: 0),
+    Order(userId: 0, productId: 0, quantity: 0),
+  ];
+
   Future<void> _createTables(Database db, int version) async {
-    // Create tables if they don't exist
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        price REAL NOT NULL
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS orders (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        product_id INTEGER NOT NULL,
-        quantity INTEGER NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users (id),
-        FOREIGN KEY (product_id) REFERENCES products (id)
-      )
-    ''');
+    for (var table in _tables) {
+      await db.execute(table.createTableQuery);
+    }
   }
+
+  Future<List<String>> getTables() async {
+    return _tables.map((table) => table.tableName).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getTableData(String tableName) async {
+    final db = await database;
+    return await db.query(tableName);
+  }
+
+  // Add other database operations as needed
 
   // Method to check database connection
   Future<bool> checkDatabaseConnection() async {
