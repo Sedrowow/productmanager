@@ -1,13 +1,21 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/sqlmanage.dart';
 import '../screens/tables_screen.dart';
 
 class MainController {
   final DatabaseManager _dbManager = DatabaseManager();
-  bool isConnected = false;
+  final _connectionController = StreamController<bool>.broadcast();
+
+  Stream<bool> get connectionStream => _connectionController.stream;
+
+  MainController() {
+    checkConnection();
+  }
 
   Future<void> checkConnection() async {
-    isConnected = await _dbManager.checkDatabaseConnection();
+    final isConnected = await _dbManager.checkConnection();
+    _connectionController.add(isConnected);
   }
 
   void navigateToTables(BuildContext context) {
@@ -17,5 +25,9 @@ class MainController {
         builder: (context) => const TablesScreen(),
       ),
     );
+  }
+
+  void dispose() {
+    _connectionController.close();
   }
 }

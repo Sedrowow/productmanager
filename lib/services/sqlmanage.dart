@@ -12,40 +12,32 @@ class DatabaseManager {
   static final DatabaseManager _instance = DatabaseManager._internal();
   static Database? _database;
 
-  factory DatabaseManager() {
-    return _instance;
-  }
-
+  factory DatabaseManager() => _instance;
   DatabaseManager._internal();
 
   Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await _initDatabase();
-    return _database!;
+    return _database ??= await _initDatabase();
   }
 
   Future<Database> _initDatabase() async {
-    String path;
+    final path = kIsWeb
+        ? 'management.db'
+        : join(await getDatabasesPath(), 'management.db');
 
-    if (kIsWeb) {
-      path = 'management.db';
-    } else {
-      path = join(await getDatabasesPath(), 'management.db');
-      // Check if database exists
-      bool exists = await databaseExists(path);
-      if (!exists) {
-        try {
-          await Directory(dirname(path)).create(recursive: true);
-        } catch (_) {}
+    if (!kIsWeb) {
+      final dbFolder = Directory(dirname(path));
+      if (!await dbFolder.exists()) {
+        await dbFolder.create(recursive: true);
       }
     }
 
-    // Open/create database
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _createTables,
-    );
+    return await openDatabase(path, version: 1, onCreate: _createTables);
+  }
+
+  Future<void> _createTables(Database db, int version) async {
+    for (var table in _tables) {
+      await db.execute(table.createTableQuery);
+    }
   }
 
   final List<BaseTable> _tables = [
@@ -54,14 +46,20 @@ class DatabaseManager {
     Order(userId: 0, productId: 0, quantity: 0),
   ];
 
-  Future<void> _createTables(Database db, int version) async {
-    for (var table in _tables) {
-      await db.execute(table.createTableQuery);
-    }
+  Future<List<String>> getTables() async {
+    final db = await database;
+    final tables = await db.query(
+      'sqlite_master',
+      where: 'type = ?',
+      whereArgs: ['table'],
+    );
+    return tables.map((t) => t['name'] as String).toList();
   }
 
-  Future<List<String>> getTables() async {
-    return _tables.map((table) => table.tableName).toList();
+  Future<List<String>> getTableColumns(String tableName) async {
+    final db = await database;
+    final columns = await db.rawQuery("PRAGMA table_info('$tableName')");
+    return columns.map((c) => c['name'] as String).toList();
   }
 
   Future<List<Map<String, dynamic>>> getTableData(String tableName) async {
@@ -69,15 +67,12 @@ class DatabaseManager {
     return await db.query(tableName);
   }
 
-  // Add other database operations as needed
-
-  // Method to check database connection
-  Future<bool> checkDatabaseConnection() async {
+  Future<bool> checkConnection() async {
     try {
       final db = await database;
       await db.query('sqlite_master');
       return true;
-    } catch (e) {
+    } catch (_) {
       return false;
     }
   }

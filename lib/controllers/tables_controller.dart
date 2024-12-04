@@ -1,63 +1,59 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-
 import '../services/sqlmanage.dart';
+
+class TableData {
+  final List<DataColumn> columns;
+  final List<DataRow> rows;
+
+  TableData({required this.columns, required this.rows});
+}
 
 class TablesController {
   final DatabaseManager _dbManager = DatabaseManager();
   String? selectedTable;
-  List<Map<String, dynamic>>? currentTableData;
-  List<Map<String, dynamic>>? currentColumnInfo;
-  List<String>? availableTables;
 
-  Future<List<String>> getTables() async {
-    if (availableTables != null) return availableTables!;
+  final _tablesController = StreamController<List<String>>.broadcast();
+  final _tableDataController = StreamController<TableData>.broadcast();
 
-    final db = await _dbManager.database;
-    final List<Map<String, dynamic>> tables = await db.query(
-      'sqlite_master',
-      where: 'type = ?',
-      whereArgs: ['table'],
-    );
-    availableTables = tables.map((table) => table['name'].toString()).toList();
-    return availableTables!;
+  Stream<List<String>> get tablesStream => _tablesController.stream;
+  Stream<TableData> get tableDataStream => _tableDataController.stream;
+
+  TablesController() {
+    _loadTables();
   }
 
-  Future<void> onTableSelected(String tableName) async {
+  void _loadTables() async {
+    final tables = await _dbManager.getTables();
+    _tablesController.add(tables);
+  }
+
+  void selectTable(String? tableName) async {
+    if (tableName == null) return;
     selectedTable = tableName;
-    await _loadTableData();
-    await _loadColumnInfo();
+
+    final data = await _dbManager.getTableData(tableName);
+    final columns = await _dbManager.getTableColumns(tableName);
+
+    _tableDataController.add(TableData(
+      columns: columns.map((col) => DataColumn(label: Text(col))).toList(),
+      rows: _convertToDataRows(data, columns),
+    ));
   }
 
-  Future<void> _loadTableData() async {
-    if (selectedTable == null) return;
-    final db = await _dbManager.database;
-    currentTableData = await db.query(selectedTable!);
-  }
-
-  Future<void> _loadColumnInfo() async {
-    if (selectedTable == null) return;
-    final db = await _dbManager.database;
-    currentColumnInfo =
-        await db.rawQuery("PRAGMA table_info('$selectedTable')");
-  }
-
-  List<DataColumn> getColumns() {
-    if (currentColumnInfo == null) return [];
-    return currentColumnInfo!
-        .map((col) => DataColumn(label: Text(col['name'])))
-        .toList();
-  }
-
-  List<DataRow> getRows() {
-    if (currentTableData == null || currentColumnInfo == null) return [];
-    return currentTableData!.map((row) {
+  List<DataRow> _convertToDataRows(
+      List<Map<String, dynamic>> data, List<String> columns) {
+    return data.map((row) {
       return DataRow(
-        cells: currentColumnInfo!.map((col) {
-          return DataCell(
-            Text(row[col['name']]?.toString() ?? 'null'),
-          );
-        }).toList(),
+        cells: columns
+            .map((col) => DataCell(Text(row[col]?.toString() ?? 'null')))
+            .toList(),
       );
     }).toList();
+  }
+
+  void dispose() {
+    _tablesController.close();
+    _tableDataController.close();
   }
 }

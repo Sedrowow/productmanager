@@ -1,26 +1,10 @@
 import 'package:flutter/material.dart';
 import '../controllers/main_controller.dart';
 
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
-
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
+class MainScreen extends StatelessWidget {
   final MainController _controller = MainController();
 
-  @override
-  void initState() {
-    super.initState();
-    _updateConnectionStatus();
-  }
-
-  Future<void> _updateConnectionStatus() async {
-    await _controller.checkConnection();
-    setState(() {});
-  }
+  MainScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -32,14 +16,19 @@ class _MainScreenState extends State<MainScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'Database connection Status: ${_controller.isConnected ? 'Connected' : 'Not Connected'}',
-              style: TextStyle(
-                color: _controller.isConnected ? Colors.green : Colors.red,
-              ),
+            StreamBuilder<bool>(
+              stream: _controller.connectionStream,
+              builder: (context, snapshot) {
+                return Text(
+                  'Database connection Status: ${snapshot.data == true ? 'Connected' : 'Not Connected'}',
+                  style: TextStyle(
+                    color: snapshot.data == true ? Colors.green : Colors.red,
+                  ),
+                );
+              },
             ),
             ElevatedButton(
-              onPressed: _updateConnectionStatus,
+              onPressed: _controller.checkConnection,
               child: const Text('Check Connection'),
             ),
             const SizedBox(height: 20),
