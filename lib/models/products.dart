@@ -1,4 +1,4 @@
-import 'base_table.dart';
+import 'base.dart';
 
 class Product extends BaseTable {
   final int? id;
@@ -13,15 +13,6 @@ class Product extends BaseTable {
 
   @override
   String get tableName => 'products';
-
-  @override
-  String get createTableQuery => '''
-    CREATE TABLE IF NOT EXISTS products (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      price REAL NOT NULL
-    )
-  ''';
 
   @override
   Map<String, dynamic> toMap() {

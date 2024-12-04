@@ -45,7 +45,7 @@ a litttle overview what each folder does:
 - **screens:** these are for visual output, like displaying things
 - **controllers:** these handle the logic that is used and executed
 - **services:** these are for external accesses, handling files, and/or anything that serves a purpose that helps logic and such to execute
-- **models:** these are the tables that are created, read, and written to. they will be imported in [sqlmanage.dart]
+- **models:** these are the frames for the tables that are created with the database manager, read, and written to. they will be imported in [sqlmanage.dart]
 
 the reason why to split up main.dart into the visual (screen) part and the logic (controller) part: it enables the dev to adapt the code better than having all the code of different topics/tasks in one file.
 
@@ -62,4 +62,4 @@ Service:
 
 ## Task State
 
-IN PROGRESS
+DONE

@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import '../models/base_table.dart';
-import '../models/users_table.dart';
-import '../models/products_table.dart';
-import '../models/orders_table.dart';
+import '../models/base.dart';
+import '../models/users.dart';
+import '../models/products.dart';
+import '../models/orders.dart';
 
 class DatabaseManager {
   static final DatabaseManager _instance = DatabaseManager._internal();
@@ -14,6 +14,51 @@ class DatabaseManager {
 
   factory DatabaseManager() => _instance;
   DatabaseManager._internal();
+
+  final List<BaseTable> _models = [
+    User(fname: '', lname: ''),
+    Product(name: '', price: 0.0),
+    Order(userId: 0, productId: 0, quantity: 0),
+  ];
+
+  String _generateCreateTableQuery(BaseTable model) {
+    final Map<String, dynamic> sampleData = model.toMap();
+    final List<String> columns = [];
+
+    // Add ID column as primary key
+    columns.add('id INTEGER PRIMARY KEY AUTOINCREMENT');
+
+    // Generate columns based on model data
+    sampleData.forEach((key, value) {
+      if (key != 'id') {
+        String type = '';
+        if (value is String) {
+          type = 'TEXT';
+        } else if (value is int) {
+          type = 'INTEGER';
+        } else if (value is double) {
+          type = 'REAL';
+        }
+
+        String constraint = 'NOT NULL';
+        if (key == 'email') constraint += ' UNIQUE';
+
+        columns.add('$key $type $constraint');
+      }
+    });
+
+    // Add foreign key constraints for Order table
+    if (model is Order) {
+      columns.add('FOREIGN KEY (user_id) REFERENCES users (id)');
+      columns.add('FOREIGN KEY (product_id) REFERENCES products (id)');
+    }
+
+    return '''
+      CREATE TABLE IF NOT EXISTS ${model.tableName} (
+        ${columns.join(',\n        ')}
+      )
+    ''';
+  }
 
   Future<Database> get database async {
     return _database ??= await _initDatabase();
@@ -35,16 +80,11 @@ class DatabaseManager {
   }
 
   Future<void> _createTables(Database db, int version) async {
-    for (var table in _tables) {
-      await db.execute(table.createTableQuery);
+    for (var model in _models) {
+      final query = _generateCreateTableQuery(model);
+      await db.execute(query);
     }
   }
-
-  final List<BaseTable> _tables = [
-    User(name: '', email: ''),
-    Product(name: '', price: 0),
-    Order(userId: 0, productId: 0, quantity: 0),
-  ];
 
   Future<List<String>> getTables() async {
     final db = await database;
