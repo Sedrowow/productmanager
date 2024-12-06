@@ -10,10 +10,9 @@ since we have now  a working structure, now its the time to have the ability to 
 
 ## TO DO
 
-implement users_screen and users_controller
-implement products_screen and products_controller
-implement orders_screen and orders_controller
+implement forms_screen
+implement forms_controller
 
-add the implementations to the main_screen and main_controller (open the table by selecting via a button for each)
+add the implementations to the main_screen and main_controller (open the table by selecting via a button for each model (or other said table) existing)
 
 move the current "view tables" button to be a debug option. whereas debug is only able to be activated with a button on the botton left corner

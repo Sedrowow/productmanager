@@ -21,6 +21,21 @@ class DatabaseManager {
     Order(userId: 0, productId: 0, quantity: 0),
   ];
 
+  List<String> getAvailableModels() {
+    // Simply return the table names from our predefined models
+    return _models.map((model) => model.tableName).toList();
+  }
+
+  BaseTable? createModel(String modelType) {
+    try {
+      return _models
+          .firstWhere((model) => model.tableName == modelType)
+          .clone();
+    } catch (e) {
+      return null;
+    }
+  }
+
   String _generateCreateTableQuery(BaseTable model) {
     final Map<String, dynamic> sampleData = model.toMap();
     final List<String> columns = [];
