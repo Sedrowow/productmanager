@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/sqlmanage.dart';
-import '../screens/tables_screen.dart';
-import '../screens/forms_screen.dart';
-import '../controllers/forms_controller.dart';
 
 class MainController {
   final DatabaseManager _dbManager = DatabaseManager();
@@ -33,30 +30,8 @@ class MainController {
     _debugModeController.add(_isDebugMode);
   }
 
-  void navigateToTables(BuildContext context) {
-    if (!_isDebugMode) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        settings: const RouteSettings(name: 'tables_screen'),
-        builder: (context) => const TablesScreen(),
-      ),
-    );
-  }
-
   void openModelForm(BuildContext context, String modelType) {
-    final model = _dbManager.createModel(modelType);
-    if (model == null) return;
-
-    final controller = FormsController(model);
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        settings: RouteSettings(name: '${modelType}_form'),
-        builder: (context) => FormsScreen(
-          modelName: modelType,
-          controller: controller,
-        ),
-      ),
-    );
+    Navigator.pushNamed(context, '/$modelType');
   }
 
   void dispose() {

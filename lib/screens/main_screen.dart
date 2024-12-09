@@ -15,13 +15,9 @@ class MainScreen extends StatelessWidget {
       body: Center(
         child: StreamBuilder<List<String>>(
           stream: _controller.modelsStream,
-          initialData: const [
-            'users',
-            'products',
-            'orders'
-          ], // Add initial data
+          initialData: const ['users', 'products', 'orders'],
           builder: (context, snapshot) {
-            final models = snapshot.data ?? []; // Handle null data
+            final models = snapshot.data ?? [];
             if (models.isEmpty) {
               return const Text('No models available');
             }
@@ -34,7 +30,7 @@ class MainScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       child: ElevatedButton(
                         onPressed: () =>
-                            _controller.openModelForm(context, modelType),
+                            Navigator.pushNamed(context, '/$modelType'),
                         child: Text('Manage ${modelType.toUpperCase()}'),
                       ),
                     ),
@@ -49,23 +45,10 @@ class MainScreen extends StatelessWidget {
         stream: _controller.debugModeStream,
         builder: (context, snapshot) {
           final isDebug = snapshot.data ?? false;
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (isDebug)
-                FloatingActionButton(
-                  heroTag: 'tables_button', // Add unique hero tag
-                  onPressed: () => _controller.navigateToTables(context),
-                  child: const Icon(Icons.table_chart),
-                ),
-              const SizedBox(height: 10),
-              FloatingActionButton(
-                heroTag: 'debug_button', // Add unique hero tag
-                onPressed: _controller.toggleDebugMode,
-                child: Icon(
-                    isDebug ? Icons.bug_report : Icons.bug_report_outlined),
-              ),
-            ],
+          return FloatingActionButton(
+            heroTag: 'debug_button',
+            onPressed: _controller.toggleDebugMode,
+            child: Icon(isDebug ? Icons.bug_report : Icons.bug_report_outlined),
           );
         },
       ),
