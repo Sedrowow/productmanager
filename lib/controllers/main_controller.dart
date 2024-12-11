@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/sqlmanage.dart';
 import '../providers/data_provider.dart';
 import '../providers/debug_settings_provider.dart';
+import '../services/github_service.dart';
 
 class MainController {
   final DatabaseManager _dbManager = DatabaseManager();
@@ -11,6 +12,7 @@ class MainController {
   final _debugModeController = StreamController<bool>.broadcast();
   final _modelsController = StreamController<List<String>>.broadcast();
   final _debugOptionsVisible = StreamController<bool>.broadcast();
+  final GitHubService _gitHubService = GitHubService();
   bool _isDebugMode = false;
   static const String _debugPin = '24682468';
 
@@ -253,43 +255,93 @@ class MainController {
   Future<void> _showBugReportDialog(BuildContext context) async {
     final TextEditingController titleController = TextEditingController();
     final TextEditingController descriptionController = TextEditingController();
+    bool isSubmitting = false;
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Submit Bug Report'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleController,
-              decoration: const InputDecoration(labelText: 'Title'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Submit Bug Report'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  hintText: 'Brief description of the issue',
+                ),
+                enabled: !isSubmitting,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText: 'Please provide detailed steps to reproduce...',
+                ),
+                maxLines: 5,
+                enabled: !isSubmitting,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: isSubmitting ? null : () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
-            TextField(
-              controller: descriptionController,
-              decoration: const InputDecoration(labelText: 'Description'),
-              maxLines: 3,
+            TextButton(
+              onPressed: isSubmitting
+                  ? null
+                  : () async {
+                      if (titleController.text.isEmpty ||
+                          descriptionController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please fill in all fields'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
+
+                      setState(() => isSubmitting = true);
+
+                      final success = await _gitHubService.createIssue(
+                        titleController.text,
+                        descriptionController.text,
+                      );
+
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              success
+                                  ? 'Bug report submitted successfully'
+                                  : 'Failed to submit bug report',
+                            ),
+                            backgroundColor:
+                                success ? Colors.green : Colors.red,
+                          ),
+                        );
+                      }
+                    },
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Submit'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              // TODO: Implement GitHub issue creation
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Bug report submitted')),
-              );
-            },
-            child: const Text('Submit'),
-          ),
-        ],
       ),
     );
+
+    titleController.dispose();
+    descriptionController.dispose();
   }
 
   void dispose() {
