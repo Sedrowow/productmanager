@@ -296,6 +296,15 @@ class DataProvider with ChangeNotifier {
   }
 
   Future<void> populateWithRandomData(String modelType, int count) async {
+    if (modelType == 'orders') {
+      // Ensure we have enough users and products
+      if ((_data['users']?.length ?? 0) < 3 ||
+          (_data['products']?.length ?? 0) < 3) {
+        throw Exception(
+            'Need at least 3 users and 3 products to populate orders');
+      }
+    }
+
     final model = _dbManager.createModel(modelType);
     if (model == null) return;
 
@@ -400,5 +409,29 @@ class DataProvider with ChangeNotifier {
 
   bool isDataLoaded(String modelType) {
     return _data[modelType]?.isNotEmpty ?? false;
+  }
+
+  Future<void> populateAllTables() async {
+    // Check if we have minimum required entries
+    await loadData('users');
+    await loadData('products');
+
+    if ((_data['users']?.length ?? 0) < 3 ||
+        (_data['products']?.length ?? 0) < 3) {
+      // Populate base tables first
+      await populateWithRandomData('users', 5);
+      await populateWithRandomData('products', 5);
+    }
+
+    // Now populate orders
+    await populateWithRandomData('orders', 10);
+  }
+
+  // Add debug state
+  bool _debugEnabled = false;
+  bool get debugEnabled => _debugEnabled;
+  set debugEnabled(bool value) {
+    _debugEnabled = value;
+    notifyListeners();
   }
 }
