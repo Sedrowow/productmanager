@@ -1,53 +1,55 @@
 import 'package:flutter/material.dart';
 import '../controllers/main_controller.dart';
 
-class MainScreen extends StatelessWidget {
+class MainScreen extends StatefulWidget {
+  const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => _MainScreenState();
+}
+
+class _MainScreenState extends State<MainScreen> {
   final MainController _controller = MainController();
 
-  MainScreen({super.key});
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Product Manager'),
-      ),
-      body: Center(
-        child: StreamBuilder<List<String>>(
-          stream: _controller.modelsStream,
-          initialData: const ['users', 'products', 'orders'],
-          builder: (context, snapshot) {
-            final models = snapshot.data ?? [];
-            if (models.isEmpty) {
-              return const Text('No models available');
-            }
-
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: models
-                  .map(
-                    (modelType) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: ElevatedButton(
-                        onPressed: () =>
-                            Navigator.pushNamed(context, '/$modelType'),
-                        child: Text('Manage ${modelType.toUpperCase()}'),
-                      ),
-                    ),
-                  )
-                  .toList(),
-            );
-          },
+      appBar: AppBar(title: const Text('Product Manager')),
+      drawer: Drawer(
+        child: ListView(
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(color: Colors.blue),
+              child: Text('Forms', style: TextStyle(color: Colors.white)),
+            ),
+            for (final model in ['users', 'products', 'orders'])
+              ListTile(
+                title: Text(model.toUpperCase()),
+                onTap: () => _controller.openModelForm(context, model),
+              ),
+          ],
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
+      body: StreamBuilder<List<String>>(
+        stream: _controller.modelsStream,
+        builder: (context, snapshot) {
+          return const Center(
+            child: Text('Select a form from the menu'),
+          );
+        },
+      ),
       floatingActionButton: StreamBuilder<bool>(
         stream: _controller.debugModeStream,
         builder: (context, snapshot) {
           final isDebug = snapshot.data ?? false;
           return FloatingActionButton(
-            heroTag: 'debug_button',
-            onPressed: _controller.toggleDebugMode,
+            onPressed: () => _controller.showDebugPinDialog(context),
             child: Icon(isDebug ? Icons.bug_report : Icons.bug_report_outlined),
           );
         },

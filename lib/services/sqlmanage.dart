@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../models/base.dart';
 import '../models/users.dart';
 import '../models/products.dart';
@@ -11,6 +10,7 @@ import '../models/orders.dart';
 class DatabaseManager {
   static final DatabaseManager _instance = DatabaseManager._internal();
   static Database? _database;
+  static const String dbName = 'product_manager.db';
 
   factory DatabaseManager() => _instance;
   DatabaseManager._internal();
@@ -76,28 +76,39 @@ class DatabaseManager {
   }
 
   Future<Database> get database async {
-    return _database ??= await _initDatabase();
+    if (_database != null) return _database!;
+    _database = await _initDatabase();
+    return _database!;
   }
 
   Future<Database> _initDatabase() async {
-    final path = kIsWeb
-        ? 'management.db'
-        : join(await getDatabasesPath(), 'management.db');
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, dbName);
 
-    if (!kIsWeb) {
-      final dbFolder = Directory(dirname(path));
-      if (!await dbFolder.exists()) {
-        await dbFolder.create(recursive: true);
-      }
-    }
-
-    return await openDatabase(path, version: 1, onCreate: _createTables);
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _onCreate,
+    );
   }
 
-  Future<void> _createTables(Database db, int version) async {
+  Future<void> _onCreate(Database db, int version) async {
     for (var model in _models) {
       final query = _generateCreateTableQuery(model);
       await db.execute(query);
+    }
+  }
+
+  Future<void> clearDatabase() async {
+    final db = await database;
+    // Get all table names
+    final tables = ['users', 'products', 'orders'];
+
+    // Drop all tables
+    for (final table in tables) {
+      await db.execute('DELETE FROM $table');
+      // Reset the auto-increment counter
+      await db.execute('DELETE FROM sqlite_sequence WHERE name = ?', [table]);
     }
   }
 
@@ -130,5 +141,29 @@ class DatabaseManager {
     } catch (_) {
       return false;
     }
+  }
+
+  Future<List<Map<String, dynamic>>> getEntries(BaseTable model) async {
+    final db = await database;
+    final List<Map<String, dynamic>> result = await db.query(model.tableName);
+    return result;
+  }
+
+  Future<int> insertEntry(BaseTable model, Map<String, dynamic> entry) async {
+    final db = await database;
+    return await db.insert(
+      model.tableName,
+      entry,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<int> deleteEntry(BaseTable model, int id) async {
+    final db = await database;
+    return await db.delete(
+      model.tableName,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 }

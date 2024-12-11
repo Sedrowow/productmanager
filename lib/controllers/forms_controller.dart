@@ -1,155 +1,194 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/base.dart';
-import '../providers/app_state.dart';
+import 'package:flutter/services.dart';
+import '../providers/data_provider.dart';
+import '../services/sqlmanage.dart';
 
 class FormsController {
-  final BaseTable model;
   final String modelName;
-  final _formFieldsController =
-      StreamController<Map<String, dynamic>>.broadcast();
-  final _entriesController =
-      StreamController<List<Map<String, dynamic>>>.broadcast();
-  final _temporaryEntriesController =
-      StreamController<List<Map<String, dynamic>>>.broadcast();
-  final _savedEntriesController =
-      StreamController<List<Map<String, dynamic>>>.broadcast();
+  final _formData = <String, dynamic>{};
+  final _formControllers = <String, TextEditingController>{};
 
-  final List<Map<String, dynamic>> _temporaryEntries = [];
-  final List<Map<String, dynamic>> _savedEntries = [];
-  Map<String, dynamic> _currentEntry = {};
-
-  List<Map<String, dynamic>> get currentEntries => _temporaryEntries;
-  List<Map<String, dynamic>> get savedEntries => _savedEntries;
-
-  Stream<Map<String, dynamic>> get formFieldsStream =>
-      _formFieldsController.stream;
-  Stream<List<Map<String, dynamic>>> get entriesStream =>
-      _entriesController.stream;
-  Stream<List<Map<String, dynamic>>> get temporaryEntriesStream =>
-      _temporaryEntriesController.stream;
-  Stream<List<Map<String, dynamic>>> get savedEntriesStream =>
-      _savedEntriesController.stream;
-
-  FormsController(this.model) : modelName = model.tableName {
-    _initializeFields();
-  }
-
-  void _initializeFields() {
-    _currentEntry = Map.from(model.toMap())..remove('id');
-    _formFieldsController.add(_currentEntry);
-    _entriesController.add([..._temporaryEntries, ..._savedEntries]);
-  }
-
-  Map<String, dynamic> getInitialFields() {
-    return Map.from(model.toMap())..remove('id');
-  }
+  FormsController(this.modelName);
 
   void updateField(String field, String value) {
-    if (_currentEntry.containsKey(field)) {
-      dynamic convertedValue = value;
-      if (_currentEntry[field] is int) {
-        convertedValue = int.tryParse(value) ?? 0;
-      } else if (_currentEntry[field] is double) {
-        convertedValue = double.tryParse(value) ?? 0.0;
-      }
-      _currentEntry[field] = convertedValue;
-    }
+    _formData[field] = value;
   }
 
   void clearForm() {
-    _currentEntry = Map.from(model.toMap())..remove('id');
-    _formFieldsController.add(_currentEntry);
-  }
-
-  void submitForm() {
-    _temporaryEntries.add(Map.from(_currentEntry));
-    clearForm();
-    _updateStreams();
-  }
-
-  void saveTemporaryEntries() {
-    _savedEntries.addAll(_temporaryEntries);
-    _temporaryEntries.clear();
-    _updateStreams();
-  }
-
-  void editEntry(int index) {
-    final allEntries = [..._temporaryEntries, ..._savedEntries];
-    _currentEntry = Map.from(allEntries[index]);
-    if (index < _temporaryEntries.length) {
-      _temporaryEntries.removeAt(index);
-    } else {
-      _savedEntries.removeAt(index - _temporaryEntries.length);
+    _formData.clear();
+    for (final controller in _formControllers.values) {
+      controller.clear();
     }
-    _formFieldsController.add(_currentEntry);
-    _entriesController.add([..._temporaryEntries, ..._savedEntries]);
   }
 
-  void deleteTemporaryEntry(int index) {
-    _temporaryEntries.removeAt(index);
-    _updateStreams();
-  }
+  void editTemporaryEntry(
+      BuildContext context, Map<String, dynamic> entry, int index) {
+    _formData.clear();
+    entry.forEach((key, value) {
+      if (key != 'id') {
+        _formControllers[key]?.text = value.toString();
+        _formData[key] = value;
+      }
+    });
 
-  void deleteSavedEntry(BuildContext context, int index) {
-    _savedEntries.removeAt(index);
-    _updateStreams();
-
-    // Update persisted data
-    final appState = context.read<AppState>();
-    appState.saveEntriesForModel(modelName, _savedEntries);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Entry deleted')),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Entry'),
+        content: SingleChildScrollView(
+          child: Form(
+            child: buildForm(context),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              context
+                  .read<DataProvider>()
+                  .updateTemporaryEntry(modelName, index, Map.from(_formData));
+              Navigator.pop(context);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
   }
 
-  void initializeWithPersistedData(List<Map<String, dynamic>> persistedData) {
-    _savedEntries.clear();
-    _savedEntries.addAll(persistedData);
-    _updateStreams();
+  Widget buildForm(BuildContext context) {
+    final model = DatabaseManager().createModel(modelName);
+    if (model == null) return const SizedBox();
+
+    final fields = model.toMap()..remove('id');
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Column(
+          children: fields.entries.map((field) {
+            _formControllers[field.key] ??= TextEditingController();
+            return Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextFormField(
+                    controller: _formControllers[field.key],
+                    decoration: InputDecoration(labelText: field.key),
+                    validator: (value) =>
+                        value?.isEmpty ?? true ? 'Field required' : null,
+                    keyboardType: _getKeyboardType(field.key),
+                    inputFormatters: _getInputFormatters(field.key),
+                    onChanged: (value) {
+                      _handleFieldChange(context, field.key, value);
+                      // Force rebuild suggestions when these fields change
+                      if (field.key == 'user_id' || field.key == 'product_id') {
+                        setState(() {}); // Trigger rebuild for suggestions
+                      }
+                    },
+                  ),
+                  if (modelName == 'orders' &&
+                      (field.key == 'user_id' || field.key == 'product_id'))
+                    Consumer<DataProvider>(
+                      builder: (context, provider, child) {
+                        return FutureBuilder<String>(
+                          future: provider.getEntitySuggestions(
+                            field.key == 'user_id' ? 'users' : 'products',
+                            _formControllers[field.key]!.text,
+                          ),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData ||
+                                snapshot.data!.isEmpty ||
+                                snapshot.data == 'No matches found') {
+                              return const SizedBox();
+                            }
+                            return Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[200],
+                                border: Border.all(color: Colors.grey[300]!),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              constraints: const BoxConstraints(
+                                maxHeight: 100, // Limit height of suggestions
+                              ),
+                              child: SingleChildScrollView(
+                                child: Text(
+                                  snapshot.data!,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
   }
 
-  void _updateStreams() {
-    _temporaryEntriesController.add(_temporaryEntries);
-    _savedEntriesController.add(_savedEntries);
+  TextInputType _getKeyboardType(String fieldKey) {
+    if (fieldKey.contains('price')) {
+      return const TextInputType.numberWithOptions(decimal: true);
+    } else if (fieldKey.contains('quantity')) {
+      return const TextInputType.numberWithOptions(decimal: false);
+    }
+    return TextInputType.text;
+  }
+
+  List<TextInputFormatter>? _getInputFormatters(String fieldKey) {
+    if (fieldKey.contains('price')) {
+      return [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))];
+    } else if (fieldKey.contains('quantity')) {
+      return [FilteringTextInputFormatter.digitsOnly];
+    }
+    return null;
+  }
+
+  void _handleFieldChange(BuildContext context, String field, String value) {
+    if (field.contains('price')) {
+      _formData[field] = double.tryParse(value) ?? 0.0;
+    } else {
+      _formData[field] = value;
+    }
+  }
+
+  void saveForm(BuildContext context) async {
+    if (_formData.isEmpty) return;
+
+    final provider = context.read<DataProvider>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    if (modelName == 'orders') {
+      // Load related data first
+      await provider.loadData('users');
+      await provider.loadData('products');
+
+      final isValid = await provider.validateOrderEntry(Map.from(_formData));
+      if (!isValid && context.mounted) {
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Invalid user or product reference')),
+        );
+        return;
+      }
+    }
+
+    provider.addTemporaryEntry(modelName, Map.from(_formData));
+    clearForm();
   }
 
   void dispose() {
-    _formFieldsController.close();
-    _temporaryEntriesController.close();
-    _savedEntriesController.close();
-  }
-
-  void navigateToScreen(BuildContext context, String route) {
-    Navigator.pushReplacementNamed(context, route);
-  }
-
-  void saveEntries(BuildContext context) {
-    saveTemporaryEntries();
-    final appState = context.read<AppState>();
-    appState.saveEntriesForModel(modelName, savedEntries);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Data saved!')),
-    );
-  }
-
-  List<PopupMenuEntry<String>> getNavigationItems(String currentModel) {
-    return [
-      if (currentModel != 'orders')
-        const PopupMenuItem<String>(value: '/orders', child: Text('Orders')),
-      if (currentModel != 'products')
-        const PopupMenuItem<String>(
-            value: '/products', child: Text('Products')),
-      if (currentModel != 'users')
-        const PopupMenuItem<String>(value: '/users', child: Text('Users')),
-    ];
-  }
-
-  void loadSavedData(BuildContext context) {
-    final appState = context.read<AppState>();
-    final savedEntries = appState.getEntriesForModel(modelName);
-    initializeWithPersistedData(savedEntries);
+    for (var controller in _formControllers.values) {
+      controller.dispose();
+    }
   }
 }

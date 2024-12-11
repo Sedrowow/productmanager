@@ -8,6 +8,7 @@ class MainController {
   final _debugModeController = StreamController<bool>.broadcast();
   final _modelsController = StreamController<List<String>>.broadcast();
   bool _isDebugMode = false;
+  static const String _debugPin = '24682468';
 
   Stream<bool> get connectionStream => _connectionController.stream;
   Stream<bool> get debugModeStream => _debugModeController.stream;
@@ -23,6 +24,50 @@ class MainController {
   Future<void> checkConnection() async {
     final isConnected = await _dbManager.checkConnection();
     _connectionController.add(isConnected);
+  }
+
+  Future<void> showDebugPinDialog(BuildContext context) async {
+    final TextEditingController pinController = TextEditingController();
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Enter Debug PIN'),
+        content: TextField(
+          controller: pinController,
+          obscureText: true,
+          decoration: const InputDecoration(
+            hintText: 'Enter PIN',
+            hintStyle: TextStyle(color: Colors.grey),
+          ),
+          keyboardType: TextInputType.number,
+          maxLength: 8,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (pinController.text == _debugPin) {
+                Navigator.pop(context);
+                toggleDebugMode();
+              } else {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Invalid PIN'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    ).then((_) => pinController.dispose());
   }
 
   void toggleDebugMode() {

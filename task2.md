@@ -41,7 +41,6 @@ now we need to display the existing tables. if a connection is existing, there w
 
 In the context of SQLite, please check the table conventions again.. I believe it is PascalCase in MYSQL.. but in most databases, Snake Case is used, which I actually prefe
 
-
 ## Task State
 
 DONE

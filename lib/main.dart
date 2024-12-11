@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'providers/app_state.dart';
+import 'providers/data_provider.dart';
 import 'screens/forms_screen.dart';
+import 'services/platform_service.dart';
+import 'screens/main_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PlatformService.initializePlatform();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => AppState(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => DataProvider()),
+      ],
       child: const MyApp(),
     ),
   );
@@ -19,7 +26,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Product Manager',
-      initialRoute: '/orders',
+      home: const MainScreen(),
       routes: {
         '/users': (context) => const FormsScreen(modelName: 'users'),
         '/products': (context) => const FormsScreen(modelName: 'products'),

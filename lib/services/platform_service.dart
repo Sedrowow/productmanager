@@ -1,15 +1,14 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 class PlatformService {
-  static Future<void> initialize() async {
+  static Future<void> initializePlatform() async {
     if (kIsWeb) {
-      // Web platform initialization
+      // Web platform
       databaseFactory = databaseFactoryFfiWeb;
-      await databaseFactoryFfiWeb.setDatabasesPath('.');
     } else {
-      // Desktop/Mobile platform initialization
+      // Desktop/Mobile platforms
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
