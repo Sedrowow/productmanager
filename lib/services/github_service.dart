@@ -4,8 +4,8 @@ import 'token_service.dart';
 
 class GitHubService {
   static const String _apiBaseUrl = 'https://api.github.com';
-  static const String _owner = 'YOUR_GITHUB_USERNAME';
-  static const String _repo = 'YOUR_REPO_NAME';
+  static const String _owner = 'Sedrowow';
+  static const String _repo = 'productmanager';
 
   Future<bool> createIssue(String title, String description) async {
     final token = TokenService.getDecryptedToken();
