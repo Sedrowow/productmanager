@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/sqlmanage.dart';
 import '../providers/data_provider.dart';
+import '../providers/debug_settings_provider.dart';
 
 class MainController {
   final DatabaseManager _dbManager = DatabaseManager();
@@ -84,65 +85,207 @@ class MainController {
   }
 
   void showDebugMenu(BuildContext context) async {
-    if (!_isDebugMode) {
+    final debugSettings =
+        Provider.of<DebugSettingsProvider>(context, listen: false);
+
+    if (!debugSettings.isDebugUnlocked && debugSettings.isDevelopmentMode) {
       await showDebugPinDialog(context);
       return;
     }
 
-    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    if (!debugSettings.isDevelopmentMode) {
+      _showBugReportDialog(context);
+      return;
+    }
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.refresh),
-            title: const Text('Check Connection'),
-            onTap: () async {
-              final result = await dataProvider.checkDatabaseConnection();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(result)),
-                );
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.data_array),
-            title: const Text('Populate All Tables'),
-            onTap: () async {
-              try {
-                await dataProvider.populateAllTables();
+      builder: (context) => AlertDialog(
+        title: const Text('Debug Options'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Consumer<DebugSettingsProvider>(
+              builder: (context, settings, _) => SwitchListTile(
+                title: const Text('Show Debug Logs'),
+                value: settings.showDebugLogs,
+                onChanged: settings.setShowDebugLogs,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.refresh),
+              title: const Text('Check Connection'),
+              onTap: () async {
+                final result =
+                    await Provider.of<DataProvider>(context, listen: false)
+                        .checkDatabaseConnection();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(result)));
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.data_array),
+              title: const Text('Populate Table'),
+              onTap: () => _showPopulateDialog(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.bug_report),
+              title: const Text('Submit Bug Report'),
+              onTap: () => _showBugReportDialog(context),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_forever),
+              title: const Text('Clear Database'),
+              onTap: () async {
+                await Provider.of<DataProvider>(context, listen: false)
+                    .clearDatabase();
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Tables populated successfully')),
+                    const SnackBar(content: Text('Database cleared')),
                   );
                 }
-              } catch (e) {
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
-                }
-              }
-            },
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showPopulateDialog(BuildContext context) async {
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    String selectedTable = 'users';
+    int entryCount = 1;
+    int maxEntries = 100;
+
+    if (selectedTable == 'orders') {
+      final usersCount = (dataProvider.getPersistedEntries('users')).length;
+      final productsCount =
+          (dataProvider.getPersistedEntries('products')).length;
+      if (usersCount < 3 || productsCount < 3) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Need at least 3 users and products')),
+        );
+        return;
+      }
+      maxEntries = usersCount * productsCount;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Populate Table'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: selectedTable,
+                items: ['users', 'products', 'orders']
+                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    selectedTable = value!;
+                    if (value == 'orders') {
+                      entryCount = maxEntries.clamp(1, maxEntries);
+                    }
+                  });
+                },
+              ),
+              TextFormField(
+                initialValue: '1',
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Number of entries',
+                  helperText: selectedTable == 'orders'
+                      ? 'Max: $maxEntries'
+                      : 'Max: 100',
+                ),
+                onChanged: (value) {
+                  entryCount = int.tryParse(value) ?? 1;
+                  if (selectedTable == 'orders') {
+                    entryCount = entryCount.clamp(1, maxEntries);
+                  } else {
+                    entryCount = entryCount.clamp(1, 100);
+                  }
+                },
+              ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.delete_forever),
-            title: const Text('Clear Database'),
-            onTap: () async {
-              await dataProvider.clearDatabase();
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Database cleared')),
-                );
-              }
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                try {
+                  await dataProvider.populateWithRandomData(
+                    selectedTable,
+                    entryCount,
+                  );
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Table populated')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  }
+                }
+              },
+              child: const Text('Populate'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showBugReportDialog(BuildContext context) async {
+    final TextEditingController titleController = TextEditingController();
+    final TextEditingController descriptionController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Submit Bug Report'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleController,
+              decoration: const InputDecoration(labelText: 'Title'),
+            ),
+            TextField(
+              controller: descriptionController,
+              decoration: const InputDecoration(labelText: 'Description'),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              // TODO: Implement GitHub issue creation
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Bug report submitted')),
+              );
             },
+            child: const Text('Submit'),
           ),
         ],
       ),

@@ -4,6 +4,7 @@ import 'providers/data_provider.dart';
 import 'screens/forms_screen.dart';
 import 'services/platform_service.dart';
 import 'screens/main_screen.dart';
+import 'providers/debug_settings_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -13,6 +14,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => DataProvider()),
+        ChangeNotifierProvider(create: (_) => DebugSettingsProvider()),
       ],
       child: const MyApp(),
     ),
