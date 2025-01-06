@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../widgets/number_picker_dialog.dart';
 import '../providers/data_provider.dart';
 import '../controllers/forms_controller.dart';
+import '../providers/debug_settings_provider.dart';
 
 class FormsScreen extends StatefulWidget {
   final String modelName;
@@ -197,6 +198,12 @@ class _FormsScreenState extends State<FormsScreen>
                   decoration: BoxDecoration(color: Colors.blue),
                   child: Text('Forms', style: TextStyle(color: Colors.white)),
                 ),
+                ListTile(
+                  leading: const Icon(Icons.home),
+                  title: const Text('Main Menu'),
+                  onTap: () => Navigator.pushReplacementNamed(context, '/'),
+                ),
+                const Divider(),
                 for (final model in ['users', 'products', 'orders'])
                   ListTile(
                     title: Text(model.toUpperCase()),
@@ -241,6 +248,39 @@ class _FormsScreenState extends State<FormsScreen>
                       child: const Text('Submit'),
                     ),
                   ],
+                ),
+                const SizedBox(height: 16),
+                Consumer<DebugSettingsProvider>(
+                  builder: (context, debugSettings, child) {
+                    if (!debugSettings.isDebugUnlocked)
+                      return const SizedBox.shrink();
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+                          onPressed: () async {
+                            final result =
+                                await provider.checkDatabaseConnection();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(result)),
+                              );
+                            }
+                          },
+                          child: const Text('Test Connection'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => provider.populateWithRandomData(
+                              widget.modelName, 5),
+                          child: const Text('Add Random Data'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => provider.clearDatabase(),
+                          child: const Text('Clear Database'),
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 Expanded(

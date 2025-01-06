@@ -1,40 +1,38 @@
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart';
+import 'dart:convert';
 
 class TokenService {
-  static final _key = Key.fromSecureRandom(32);
-  static final _iv = IV.fromSecureRandom(16);
+  // Use fixed key and IV for consistency
+  static final _key = Key(
+      base64Decode('buLbD7SqWURgqeP2BtrEe47dx7tnRfRhzuWMewl/A70=')); // 32 bytes
+  static final _iv = IV(base64Decode('AxXbBQpzT/29LrWDzpRKtw==')); // 16 bytes
   static final _encrypter = Encrypter(AES(_key));
 
-  // This is just a simple example of token obfuscation
-  // Replace YOUR_ENCRYPTED_TOKEN with your actual encrypted token
   static const String _encryptedToken =
-      'v1xpMWI5aqG7TJigYcjqriy9OEUluXz6ttRO5hA+c8dltqez9T/f4b6g6dvDDz69ncowx4eO20ha+4CxQ758wBeJNb0nXWDp+kV+goitk1DkftazXYfyeHPCsAUPJhTv';
+      'IGCBNbxf++XUIK7dCKAPvdsMUkgLm1A2mhFfaUxsuOooki1VCUjuA1/y7lR9UvuJ';
 
-  static String getDecryptedToken() {
-    try {
-      // Add some runtime transformation to make it harder to extract token
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      final salt =
-          sha256.convert(utf8.encode(timestamp.substring(0, 5))).toString();
-
-      final encrypted = Encrypted.fromBase64(_encryptedToken);
-      final decrypted = _encrypter.decrypt(encrypted, iv: _iv);
-
-      // Add additional runtime transformation
-      final keyParts = decrypted.split('').toList();
-      keyParts.removeWhere((char) => salt.contains(char));
-
-      return keyParts.join('');
-    } catch (e) {
-      return '';
-    }
+  // Helper method to generate new key/IV (run once)
+  static void generateNewKeyAndIV() {
+    final key = Key.fromSecureRandom(32);
+    final iv = IV.fromSecureRandom(16);
+    print('Key (Base64): ${base64Encode(key.bytes)}');
+    print('IV (Base64): ${base64Encode(iv.bytes)}');
   }
 
-  // Use this method to generate your encrypted token (run once)
-  static String encryptToken(String token) {
+  // Helper method to encrypt a token with the fixed key/IV
+  static String encryptNewToken(String token) {
     final encrypted = _encrypter.encrypt(token, iv: _iv);
+    print('Encrypted token: ${encrypted.base64}');
     return encrypted.base64;
+  }
+
+  static String getGitHubToken() {
+    try {
+      final encrypted = Encrypted.fromBase64(_encryptedToken);
+      return _encrypter.decrypt(encrypted, iv: _iv);
+    } catch (e) {
+      print('Error decrypting token: $e');
+      return '';
+    }
   }
 }
