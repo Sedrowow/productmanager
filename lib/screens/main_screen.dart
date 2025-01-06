@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:productmanager/providers/debug_settings_provider.dart';
+import 'package:provider/provider.dart';
 import '../controllers/main_controller.dart';
 import 'dart:async';
 import 'dart:math';
@@ -168,13 +170,19 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           ],
         ),
       ),
-      floatingActionButton: StreamBuilder<bool>(
-        stream: _controller.debugModeStream,
-        builder: (context, snapshot) {
-          final isDebug = snapshot.data ?? false;
+      floatingActionButton: Consumer<DebugSettingsProvider>(
+        builder: (context, debugSettings, _) {
           return FloatingActionButton(
             onPressed: () => _controller.showDebugMenu(context),
-            child: Icon(isDebug ? Icons.bug_report : Icons.bug_report_outlined),
+            tooltip:
+                debugSettings.isDevelopmentMode ? 'Debug Menu' : 'Report Bug',
+            child: Icon(
+              debugSettings.isDevelopmentMode
+                  ? (debugSettings.isDebugUnlocked
+                      ? Icons.bug_report
+                      : Icons.bug_report_outlined)
+                  : Icons.report_problem_outlined,
+            ),
           );
         },
       ),

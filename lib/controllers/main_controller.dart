@@ -88,8 +88,14 @@ class MainController {
   Future<void> showDebugMenu(BuildContext context) async {
     final debugSettings =
         Provider.of<DebugSettingsProvider>(context, listen: false);
-    final isUnlocked = debugSettings.isDebugUnlocked;
 
+    // If not in development mode, show only bug report
+    if (!debugSettings.isDevelopmentMode) {
+      _showBugReportDialog(context);
+      return;
+    }
+
+    // Show full debug menu in development mode
     await showModalBottomSheet(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -107,7 +113,7 @@ class MainController {
                   _debugModeController.add(value);
                 },
               ),
-              if (isUnlocked) ...[
+              if (debugSettings.isDebugUnlocked) ...[
                 SwitchListTile(
                   title: const Text('Show Debug Logs'),
                   value: debugSettings.showDebugLogs,
