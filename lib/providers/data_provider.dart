@@ -434,4 +434,69 @@ class DataProvider with ChangeNotifier {
     _debugEnabled = value;
     notifyListeners();
   }
+
+  Future<List<Map<String, dynamic>>> getOrdersWithReference(
+      String type, int id) async {
+    final model = _dbManager.createModel('orders');
+    if (model == null) return [];
+
+    final allOrders = [
+      ...(_data['orders'] ?? []),
+      ...(_tempData['orders'] ?? [])
+    ];
+    return allOrders
+        .where((order) => order['${type}_id'].toString() == id.toString())
+        .toList();
+  }
+
+  Future<bool> hasTemporaryEntries(String modelType) async {
+    return (_tempData[modelType]?.isNotEmpty ?? false);
+  }
+
+  Future<bool> validateIds(Map<String, dynamic> order) async {
+    final userId = order['user_id']?.toString();
+    final productId = order['product_id']?.toString();
+
+    if (userId == null || productId == null) return false;
+
+    // Check both persisted and temporary data
+    final allUsers = [...(_data['users'] ?? []), ...(_tempData['users'] ?? [])];
+    final allProducts = [
+      ...(_data['products'] ?? []),
+      ...(_tempData['products'] ?? [])
+    ];
+
+    final userExists = allUsers.any((u) => u['id'].toString() == userId);
+    final productExists =
+        allProducts.any((p) => p['id'].toString() == productId);
+
+    return userExists && productExists;
+  }
+
+  Future<void> saveAllTemporaryEntries(List<String> modelTypes) async {
+    for (final modelType in modelTypes) {
+      await persistTemporaryEntries(modelType);
+    }
+  }
+
+  Future<Map<String, List<Map<String, dynamic>>>> getDependentOrders(
+      String modelType, int id) async {
+    final dependentOrders =
+        await getOrdersWithReference(modelType.replaceAll('s', ''), id);
+
+    Map<String, List<Map<String, dynamic>>> result = {
+      'persisted': [],
+      'temporary': []
+    };
+
+    for (var order in dependentOrders) {
+      if (_data['orders']?.any((o) => o['id'] == order['id']) ?? false) {
+        result['persisted']!.add(order);
+      } else {
+        result['temporary']!.add(order);
+      }
+    }
+
+    return result;
+  }
 }

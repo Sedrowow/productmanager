@@ -162,6 +162,56 @@ class FormsController {
     }
   }
 
+  Future<bool> _confirmDependentDeletion(
+      BuildContext context, String modelType, int id) async {
+    final provider = context.read<DataProvider>();
+    final dependentOrders = await provider.getDependentOrders(modelType, id);
+
+    if (dependentOrders['persisted']!.isEmpty &&
+        dependentOrders['temporary']!.isEmpty) {
+      return true;
+    }
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Warning'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                    'Deleting this ${modelType.substring(0, modelType.length - 1)} will also delete the following orders:'),
+                const SizedBox(height: 10),
+                if (dependentOrders['persisted']!.isNotEmpty) ...[
+                  const Text('Saved Orders:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...dependentOrders['persisted']!.map((order) => Text(
+                      'Order #${order['id']} - Quantity: ${order['quantity']}')),
+                ],
+                if (dependentOrders['temporary']!.isNotEmpty) ...[
+                  const Text('Temporary Orders:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...dependentOrders['temporary']!.map((order) =>
+                      Text('Temporary Order - Quantity: ${order['quantity']}')),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Delete All'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   void saveForm(BuildContext context) async {
     if (_formData.isEmpty) return;
 
@@ -169,21 +219,63 @@ class FormsController {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     if (modelName == 'orders') {
-      // Load related data first
-      await provider.loadData('users');
-      await provider.loadData('products');
-
-      final isValid = await provider.validateOrderEntry(Map.from(_formData));
-      if (!isValid && context.mounted) {
+      // Validate IDs first
+      final isValid = await provider.validateIds(Map.from(_formData));
+      if (!isValid) {
         scaffoldMessenger.showSnackBar(
-          const SnackBar(content: Text('Invalid user or product reference')),
+          const SnackBar(
+            content: Text('Invalid user or product ID - Entry not possible'),
+            backgroundColor: Colors.red,
+          ),
         );
         return;
+      }
+
+      // Check if there are temporary entries in users or products
+      final hasTemporaryUsers = await provider.hasTemporaryEntries('users');
+      final hasTemporaryProducts =
+          await provider.hasTemporaryEntries('products');
+
+      if (hasTemporaryUsers || hasTemporaryProducts) {
+        final shouldSave = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Save Required'),
+                content: const Text(
+                    'There are temporary entries in users or products. '
+                    'These need to be saved before adding an order. '
+                    'Would you like to save them now?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('Save All'),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
+
+        if (!shouldSave) return;
+
+        // Save all temporary entries
+        await provider.saveAllTemporaryEntries(['users', 'products']);
       }
     }
 
     provider.addTemporaryEntry(modelName, Map.from(_formData));
     clearForm();
+  }
+
+  Future<bool> confirmDelete(
+      BuildContext context, String modelType, int id) async {
+    if (modelType == 'users' || modelType == 'products') {
+      return await _confirmDependentDeletion(context, modelType, id);
+    }
+    return true;
   }
 
   void dispose() {

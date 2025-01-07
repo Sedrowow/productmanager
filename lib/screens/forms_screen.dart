@@ -252,8 +252,9 @@ class _FormsScreenState extends State<FormsScreen>
                 const SizedBox(height: 16),
                 Consumer<DebugSettingsProvider>(
                   builder: (context, debugSettings, child) {
-                    if (!debugSettings.isDebugUnlocked)
+                    if (!debugSettings.isDebugUnlocked) {
                       return const SizedBox.shrink();
+                    }
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [

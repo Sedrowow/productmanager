@@ -160,6 +160,27 @@ class DatabaseManager {
 
   Future<int> deleteEntry(BaseTable model, int id) async {
     final db = await database;
+
+    // If deleting a user or product, check for dependent orders first
+    if (model.tableName == 'users' || model.tableName == 'products') {
+      final String fieldName =
+          '${model.tableName.substring(0, model.tableName.length - 1)}_id';
+      final dependentOrders = await db.query(
+        'orders',
+        where: '$fieldName = ?',
+        whereArgs: [id],
+      );
+
+      if (dependentOrders.isNotEmpty) {
+        // Delete dependent orders first
+        await db.delete(
+          'orders',
+          where: '$fieldName = ?',
+          whereArgs: [id],
+        );
+      }
+    }
+
     return await db.delete(
       model.tableName,
       where: 'id = ?',
