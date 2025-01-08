@@ -446,6 +446,8 @@ class DataProvider with ChangeNotifier {
     ];
     return allOrders
         .where((order) => order['${type}_id'].toString() == id.toString())
+        .map((order) =>
+            Map<String, dynamic>.from(order)) // Convert to correct type
         .toList();
   }
 

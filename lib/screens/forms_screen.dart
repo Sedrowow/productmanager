@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../widgets/number_picker_dialog.dart';
 import '../providers/data_provider.dart';
 import '../controllers/forms_controller.dart';
 import '../providers/debug_settings_provider.dart';
@@ -98,64 +97,6 @@ class _FormsScreenState extends State<FormsScreen>
     );
   }
 
-  Widget _buildDebugButton() {
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.bug_report),
-      onSelected: (value) => _handleDebugOption(value),
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'check', child: Text('Check Connection')),
-        const PopupMenuItem(value: 'clear', child: Text('Clear Database')),
-        const PopupMenuItem(
-            value: 'populate', child: Text('Populate with Random Data')),
-      ],
-    );
-  }
-
-  Future<void> _handleDebugOption(String option) async {
-    final provider = context.read<DataProvider>();
-    switch (option) {
-      case 'check':
-        final result = await provider.checkDatabaseConnection();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result)),
-        );
-        break;
-      case 'clear':
-        await provider.clearDatabase();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Database cleared')),
-        );
-        break;
-      case 'populate':
-        if (widget.modelName != 'orders') {
-          await _showPopulateDialog();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cannot populate orders directly')),
-          );
-        }
-        break;
-    }
-  }
-
-  Future<void> _showPopulateDialog() async {
-    final count = await showDialog<int>(
-      context: context,
-      builder: (context) => const NumberPickerDialog(
-        minValue: 1,
-        maxValue: 10,
-        title: 'Select number of entries',
-      ),
-    );
-    if (count != null && mounted) {
-      await context
-          .read<DataProvider>()
-          .populateWithRandomData(widget.modelName, count);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<DataProvider>(
@@ -170,7 +111,6 @@ class _FormsScreenState extends State<FormsScreen>
               ),
             ),
             actions: [
-              _buildDebugButton(),
               IconButton(
                 icon: const Icon(Icons.save),
                 onPressed: () {
